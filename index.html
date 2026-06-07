@@ -739,7 +739,10 @@
       activePage: 0,
       activePhotoId: null,
       paper: { w: 6, h: 4 },
-      pointer: null
+      pointer: null,
+      printReady: false,
+      printBuildId: 0,
+      printTimer: null
     };
 
     const els = {
@@ -836,7 +839,8 @@
 
     function updateControlAvailability() {
       const hasPhotos = state.photos.length > 0;
-      els.printBtn.disabled = !hasPhotos;
+      els.printBtn.disabled = !hasPhotos || !state.printReady;
+      els.printBtn.title = state.printReady ? "打印全部页面" : "正在准备打印页面";
       els.downloadBtn.disabled = !hasPhotos;
       els.fitBtn.disabled = !getActivePhoto();
       els.rotateLeftBtn.disabled = !getActivePhoto();
@@ -1023,10 +1027,12 @@
 
       slot.addEventListener("pointerup", () => {
         state.pointer = null;
+        schedulePrintBuild();
       });
 
       slot.addEventListener("pointercancel", () => {
         state.pointer = null;
+        schedulePrintBuild();
       });
 
       return slot;
@@ -1102,9 +1108,9 @@
       renderPhotoList();
       renderPageStrip();
       renderSheet();
-      renderPrintRoot();
       updateOutputs();
       updateControlAvailability();
+      schedulePrintBuild();
     }
 
     function updateActivePhoto(patch) {
@@ -1189,19 +1195,7 @@
       link.click();
     }
 
-    async function preparePrint() {
-      els.printRoot.innerHTML = "";
-      for (let page = 0; page < pageCount(); page += 1) {
-        const canvas = await drawPageToCanvas(page);
-        const printPage = document.createElement("div");
-        printPage.className = `print-page${state.orientation === "portrait" ? " portrait" : ""}`;
-        const img = document.createElement("img");
-        img.className = "print-canvas";
-        img.alt = "";
-        img.src = canvas.toDataURL("image/jpeg", 0.98);
-        printPage.appendChild(img);
-        els.printRoot.appendChild(printPage);
-      }
+    function updatePrintPageSizeStyle() {
       const styleId = "dynamic-print-size";
       document.getElementById(styleId)?.remove();
       const style = document.createElement("style");
@@ -1217,11 +1211,57 @@
       document.head.appendChild(style);
     }
 
-    async function printAll() {
+    function schedulePrintBuild(delay = 160) {
+      clearTimeout(state.printTimer);
+      state.printReady = false;
+      updateControlAvailability();
+      if (!state.photos.length) {
+        els.printRoot.replaceChildren();
+        return;
+      }
+      const buildId = ++state.printBuildId;
+      state.printTimer = setTimeout(() => {
+        preparePrint(buildId);
+      }, delay);
+    }
+
+    async function preparePrint(buildId = ++state.printBuildId) {
+      if (!state.photos.length) {
+        state.printReady = false;
+        els.printRoot.replaceChildren();
+        updateControlAvailability();
+        return false;
+      }
+      const fragment = document.createDocumentFragment();
+      for (let page = 0; page < pageCount(); page += 1) {
+        const canvas = await drawPageToCanvas(page);
+        if (buildId !== state.printBuildId) return false;
+        const printPage = document.createElement("div");
+        printPage.className = `print-page${state.orientation === "portrait" ? " portrait" : ""}`;
+        const img = document.createElement("img");
+        img.className = "print-canvas";
+        img.alt = "";
+        img.src = canvas.toDataURL("image/jpeg", 0.98);
+        printPage.appendChild(img);
+        fragment.appendChild(printPage);
+      }
+      if (buildId !== state.printBuildId) return false;
+      els.printRoot.replaceChildren(fragment);
+      updatePrintPageSizeStyle();
+      state.printReady = true;
+      updateControlAvailability();
+      return true;
+    }
+
+    function printAll() {
       if (!state.photos.length) return;
-      showToast("打印窗口打开后，请在打印设置里选 6 寸相纸、无边距或实际大小。");
-      await preparePrint();
-      setTimeout(() => window.print(), 120);
+      if (!state.printReady) {
+        showToast("正在准备打印页面，稍等一秒再点打印。");
+        schedulePrintBuild(0);
+        return;
+      }
+      showToast("如果没有弹出打印，请换 Safari/Chrome 打开当前网页。");
+      window.print();
     }
 
     els.fileInput.addEventListener("change", event => handleFiles(event.target.files));
@@ -1252,7 +1292,8 @@
       render,
       handleFiles,
       drawPageToCanvas,
-      preparePrint
+      preparePrint,
+      schedulePrintBuild
     };
 
     render();
