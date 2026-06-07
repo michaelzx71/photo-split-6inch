@@ -3,8 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0f7f6e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="照片切分">
   <title>六寸相纸切两张三寸照片</title>
+  <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='8' fill='%230f7f6e'/%3E%3Crect x='10' y='14' width='44' height='16' fill='white'/%3E%3Crect x='10' y='34' width='44' height='16' fill='white'/%3E%3C/svg%3E">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
   <style>
     :root {
       --ink: #1f2328;
@@ -346,6 +351,7 @@
 
     .sheet {
       --sheet-w: min(100%, 720px);
+      position: relative;
       width: var(--sheet-w);
       aspect-ratio: 6 / 4;
       margin: 0 auto;
@@ -377,6 +383,27 @@
     .sheet.portrait .slot + .slot {
       border-left-width: 0;
       border-top-width: 1px;
+    }
+
+    .sheet::after {
+      content: "";
+      position: absolute;
+      pointer-events: none;
+      left: 50%;
+      top: 0;
+      bottom: 0;
+      border-left: 1px dashed rgba(31, 35, 40, 0.12);
+      transform: translateX(-0.5px);
+    }
+
+    .sheet.portrait::after {
+      left: 0;
+      right: 0;
+      top: 50%;
+      bottom: auto;
+      border-left: 0;
+      border-top: 1px dashed rgba(31, 35, 40, 0.12);
+      transform: translateY(-0.5px);
     }
 
     .slot-inner {
@@ -446,6 +473,17 @@
 
     .print-root {
       display: none;
+    }
+
+    .print-frame-host {
+      position: fixed;
+      left: -100vw;
+      top: 0;
+      width: 1px;
+      height: 1px;
+      border: 0;
+      opacity: 0;
+      pointer-events: none;
     }
 
     .toast {
@@ -622,6 +660,10 @@
         width: 100%;
         height: 100%;
       }
+
+      .print-frame-host {
+        display: none !important;
+      }
     }
   </style>
 </head>
@@ -630,10 +672,10 @@
     <header class="topbar">
       <div class="brand">
         <h1>六寸打两张三寸</h1>
-        <p class="subtitle">上传照片后自动两张拼一页，留白、方向、裁切位置都能调。手机上点打印会唤起系统打印。</p>
+        <p class="subtitle">上传照片后自动两张拼一页，留白、方向、旋转和位置都能调。手机上可下载全部拼版或打印。</p>
       </div>
       <div class="toolbar" aria-label="主要操作">
-        <button class="btn" id="downloadBtn" type="button" disabled title="下载当前页图片">
+        <button class="btn" id="downloadBtn" type="button" disabled title="下载全部拼版图片">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v11m0 0 4-4m-4 4-4-4M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           下载
         </button>
@@ -669,10 +711,6 @@
             <label for="marginRange">四周白边 <output id="marginOut">0.18 in</output></label>
             <input id="marginRange" type="range" min="0" max="0.35" value="0.18" step="0.01">
           </div>
-          <div class="field">
-            <label for="zoomRange">照片缩放 <output id="zoomOut">100%</output></label>
-            <input id="zoomRange" type="range" min="0.75" max="1.6" value="1" step="0.01">
-          </div>
           <div class="inline-grid">
             <button class="btn" id="rotateLeftBtn" type="button" disabled title="向左旋转 90 度">
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h9a7 7 0 1 1-6.33 10M4 7l4-4M4 7l4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -688,21 +726,6 @@
             <input id="rotateRange" type="range" min="-180" max="180" value="0" step="1">
           </div>
           <p class="hint">点预览里的照片选中，直接拖动照片调整位置。</p>
-        </section>
-
-        <section class="section">
-          <p class="section-title">精确纸张</p>
-          <div class="inline-grid">
-            <div class="field">
-              <label for="paperW">宽度 inch</label>
-              <input class="number-input" id="paperW" type="number" min="1" max="12" value="6" step="0.01">
-            </div>
-            <div class="field">
-              <label for="paperH">高度 inch</label>
-              <input class="number-input" id="paperH" type="number" min="1" max="12" value="4" step="0.01">
-            </div>
-          </div>
-          <p class="hint">大多数六寸照片是 6x4 英寸。如果打印机相纸选项不同，可以在这里改。</p>
         </section>
 
         <section class="section">
@@ -730,6 +753,7 @@
   </main>
 
   <div id="printRoot" class="print-root" aria-hidden="true"></div>
+  <iframe id="printFrame" class="print-frame-host" title="照片打印文档"></iframe>
   <div id="toast" class="toast" role="status"></div>
 
   <script>
@@ -742,7 +766,8 @@
       pointer: null,
       printReady: false,
       printBuildId: 0,
-      printTimer: null
+      printTimer: null,
+      printUrls: []
     };
 
     const els = {
@@ -750,15 +775,11 @@
       landscapeBtn: document.getElementById("landscapeBtn"),
       portraitBtn: document.getElementById("portraitBtn"),
       marginRange: document.getElementById("marginRange"),
-      zoomRange: document.getElementById("zoomRange"),
       rotateRange: document.getElementById("rotateRange"),
       rotateLeftBtn: document.getElementById("rotateLeftBtn"),
       rotateRightBtn: document.getElementById("rotateRightBtn"),
       marginOut: document.getElementById("marginOut"),
-      zoomOut: document.getElementById("zoomOut"),
       rotateOut: document.getElementById("rotateOut"),
-      paperW: document.getElementById("paperW"),
-      paperH: document.getElementById("paperH"),
       photoList: document.getElementById("photoList"),
       photoHint: document.getElementById("photoHint"),
       sheet: document.getElementById("sheet"),
@@ -766,6 +787,7 @@
       pageStrip: document.getElementById("pageStrip"),
       counter: document.getElementById("counter"),
       printRoot: document.getElementById("printRoot"),
+      printFrame: document.getElementById("printFrame"),
       printBtn: document.getElementById("printBtn"),
       downloadBtn: document.getElementById("downloadBtn"),
       fitBtn: document.getElementById("fitBtn"),
@@ -808,13 +830,10 @@
     function updateOutputs() {
       const active = getActivePhoto();
       const margin = active ? active.margin : Number(els.marginRange.value);
-      const zoom = active ? active.zoom : Number(els.zoomRange.value);
       const rotate = active ? active.rotate : Number(els.rotateRange.value);
       els.marginRange.value = margin;
-      els.zoomRange.value = zoom;
       els.rotateRange.value = normalizeRotation(rotate);
       els.marginOut.value = `${Number(margin).toFixed(2)} in`;
-      els.zoomOut.value = `${Math.round(zoom * 100)}%`;
       els.rotateOut.value = `${Math.round(normalizeRotation(rotate))}°`;
     }
 
@@ -823,17 +842,7 @@
       const isPortrait = orientation === "portrait";
       els.landscapeBtn.classList.toggle("active", !isPortrait);
       els.portraitBtn.classList.toggle("active", isPortrait);
-      state.paper = {
-        w: Number(els.paperW.value) || (isPortrait ? 4 : 6),
-        h: Number(els.paperH.value) || (isPortrait ? 6 : 4)
-      };
-      render();
-    }
-
-    function setPaperFromInputs() {
-      const w = Math.max(1, Number(els.paperW.value) || 6);
-      const h = Math.max(1, Number(els.paperH.value) || 4);
-      state.paper = { w, h };
+      state.paper = isPortrait ? { w: 4, h: 6 } : { w: 6, h: 4 };
       render();
     }
 
@@ -845,7 +854,7 @@
       els.fitBtn.disabled = !getActivePhoto();
       els.rotateLeftBtn.disabled = !getActivePhoto();
       els.rotateRightBtn.disabled = !getActivePhoto();
-      [els.marginRange, els.zoomRange, els.rotateRange].forEach(input => {
+      [els.marginRange, els.rotateRange].forEach(input => {
         input.disabled = !getActivePhoto();
       });
     }
@@ -946,14 +955,14 @@
     function imageTransform(photo, frameRect) {
       const frameRatio = frameRect.width / frameRect.height;
       const imageRatio = photo.width / photo.height;
-      const baseWidth = imageRatio > frameRatio ? frameRect.height * imageRatio : frameRect.width;
-      const baseHeight = imageRatio > frameRatio ? frameRect.height : frameRect.width / imageRatio;
+      const baseWidth = imageRatio > frameRatio ? frameRect.width : frameRect.height * imageRatio;
+      const baseHeight = imageRatio > frameRatio ? frameRect.width / imageRatio : frameRect.height;
       const angle = (normalizeRotation(photo.rotate) * Math.PI) / 180;
       const rotatedWidth = Math.abs(baseWidth * Math.cos(angle)) + Math.abs(baseHeight * Math.sin(angle));
       const rotatedHeight = Math.abs(baseWidth * Math.sin(angle)) + Math.abs(baseHeight * Math.cos(angle));
-      const rotationCover = Math.max(frameRect.width / rotatedWidth, frameRect.height / rotatedHeight, 1);
-      const width = baseWidth * rotationCover * photo.zoom;
-      const height = baseHeight * rotationCover * photo.zoom;
+      const rotationFit = Math.min(frameRect.width / rotatedWidth, frameRect.height / rotatedHeight, 1);
+      const width = baseWidth * rotationFit;
+      const height = baseHeight * rotationFit;
       return {
         width,
         height,
@@ -1121,7 +1130,7 @@
     }
 
     function resetActivePhoto() {
-      updateActivePhoto({ margin: 0.18, zoom: 1, rotate: 0, x: 0, y: 0 });
+      updateActivePhoto({ margin: 0.18, rotate: 0, x: 0, y: 0 });
       showToast("已重置当前照片。");
     }
 
@@ -1164,14 +1173,14 @@
         const img = await loadImage(photo.url);
         const frameRatio = frame.width / frame.height;
         const imageRatio = photo.width / photo.height;
-        const baseW = imageRatio > frameRatio ? frame.height * imageRatio : frame.width;
-        const baseH = imageRatio > frameRatio ? frame.height : frame.width / imageRatio;
+        const baseW = imageRatio > frameRatio ? frame.width : frame.height * imageRatio;
+        const baseH = imageRatio > frameRatio ? frame.width / imageRatio : frame.height;
         const angle = (normalizeRotation(photo.rotate) * Math.PI) / 180;
         const rotatedW = Math.abs(baseW * Math.cos(angle)) + Math.abs(baseH * Math.sin(angle));
         const rotatedH = Math.abs(baseW * Math.sin(angle)) + Math.abs(baseH * Math.cos(angle));
-        const rotationCover = Math.max(frame.width / rotatedW, frame.height / rotatedH, 1);
-        const drawW = baseW * rotationCover * photo.zoom;
-        const drawH = baseH * rotationCover * photo.zoom;
+        const rotationFit = Math.min(frame.width / rotatedW, frame.height / rotatedH, 1);
+        const drawW = baseW * rotationFit;
+        const drawH = baseH * rotationFit;
         const cx = frame.x + frame.width / 2 + (photo.x / 100) * frame.width * 0.5;
         const cy = frame.y + frame.height / 2 + (photo.y / 100) * frame.height * 0.5;
         ctx.save();
@@ -1183,16 +1192,54 @@
         ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
         ctx.restore();
       }
+      drawDivider(ctx, canvas.width, canvas.height);
       return canvas;
     }
 
-    async function downloadCurrentPage() {
+    function drawDivider(ctx, width, height) {
+      ctx.save();
+      ctx.strokeStyle = "rgba(0, 0, 0, 0.08)";
+      ctx.lineWidth = 1;
+      ctx.setLineDash([10, 12]);
+      ctx.beginPath();
+      if (state.orientation === "portrait") {
+        ctx.moveTo(0, height / 2);
+        ctx.lineTo(width, height / 2);
+      } else {
+        ctx.moveTo(width / 2, 0);
+        ctx.lineTo(width / 2, height);
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function canvasToBlob(canvas, type = "image/jpeg", quality = 0.94) {
+      return new Promise(resolve => canvas.toBlob(resolve, type, quality));
+    }
+
+    function wait(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    async function downloadAllPages() {
       if (!state.photos.length) return;
-      const canvas = await drawPageToCanvas(state.activePage);
-      const link = document.createElement("a");
-      link.download = `六寸拼版-${state.activePage + 1}.jpg`;
-      link.href = canvas.toDataURL("image/jpeg", 0.96);
-      link.click();
+      els.downloadBtn.disabled = true;
+      showToast(`开始下载 ${pageCount()} 张拼版图片。`);
+      for (let page = 0; page < pageCount(); page += 1) {
+        const canvas = await drawPageToCanvas(page);
+        const blob = await canvasToBlob(canvas);
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.download = `六寸拼版-${page + 1}.jpg`;
+        link.href = url;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+        await wait(450);
+      }
+      updateControlAvailability();
+      showToast("拼版图片已逐张下载。");
     }
 
     function updatePrintPageSizeStyle() {
@@ -1217,6 +1264,8 @@
       updateControlAvailability();
       if (!state.photos.length) {
         els.printRoot.replaceChildren();
+        resetPrintUrls();
+        els.printFrame.removeAttribute("srcdoc");
         return;
       }
       const buildId = ++state.printBuildId;
@@ -1233,24 +1282,64 @@
         return false;
       }
       const fragment = document.createDocumentFragment();
+      const urls = [];
       for (let page = 0; page < pageCount(); page += 1) {
         const canvas = await drawPageToCanvas(page);
         if (buildId !== state.printBuildId) return false;
+        const blob = await canvasToBlob(canvas, "image/jpeg", 0.98);
+        if (buildId !== state.printBuildId) return false;
+        const url = URL.createObjectURL(blob);
+        urls.push(url);
         const printPage = document.createElement("div");
         printPage.className = `print-page${state.orientation === "portrait" ? " portrait" : ""}`;
         const img = document.createElement("img");
         img.className = "print-canvas";
         img.alt = "";
-        img.src = canvas.toDataURL("image/jpeg", 0.98);
+        img.src = url;
         printPage.appendChild(img);
         fragment.appendChild(printPage);
       }
       if (buildId !== state.printBuildId) return false;
+      resetPrintUrls();
+      state.printUrls = urls;
       els.printRoot.replaceChildren(fragment);
       updatePrintPageSizeStyle();
+      await updatePrintFrameDocument();
+      if (buildId !== state.printBuildId) return false;
       state.printReady = true;
       updateControlAvailability();
       return true;
+    }
+
+    function resetPrintUrls() {
+      state.printUrls.forEach(url => URL.revokeObjectURL(url));
+      state.printUrls = [];
+    }
+
+    function updatePrintFrameDocument() {
+      const pages = state.printUrls.map(url => `<section class="page"><img src="${url}" alt=""></section>`).join("");
+      return new Promise(resolve => {
+        const done = () => {
+          els.printFrame.removeEventListener("load", done);
+          resolve();
+        };
+        els.printFrame.addEventListener("load", done);
+        els.printFrame.srcdoc = `<!doctype html>
+          <html lang="zh-CN">
+          <head>
+            <meta charset="utf-8">
+            <style>
+              @page { size: ${state.paper.w}in ${state.paper.h}in; margin: 0; }
+              html, body { margin: 0; padding: 0; background: white; width: ${state.paper.w}in; }
+              .page { width: ${state.paper.w}in; height: ${state.paper.h}in; margin: 0; page-break-after: always; break-after: page; overflow: hidden; background: white; }
+              .page:last-child { page-break-after: auto; break-after: auto; }
+              img { display: block; width: 100%; height: 100%; object-fit: fill; }
+            </style>
+          </head>
+          <body>${pages}</body>
+          </html>`;
+        setTimeout(done, 1200);
+      });
     }
 
     function printAll() {
@@ -1260,31 +1349,30 @@
         schedulePrintBuild(0);
         return;
       }
-      showToast("如果没有弹出打印，请换 Safari/Chrome 打开当前网页。");
-      window.print();
+      showToast("打印预览应只显示照片拼版。");
+      const printWindow = els.printFrame.contentWindow;
+      if (printWindow) {
+        printWindow.focus();
+        printWindow.print();
+      } else {
+        window.print();
+      }
     }
 
     els.fileInput.addEventListener("change", event => handleFiles(event.target.files));
     els.landscapeBtn.addEventListener("click", () => {
-      els.paperW.value = 6;
-      els.paperH.value = 4;
       setOrientation("landscape");
     });
     els.portraitBtn.addEventListener("click", () => {
-      els.paperW.value = 4;
-      els.paperH.value = 6;
       setOrientation("portrait");
     });
-    els.paperW.addEventListener("input", setPaperFromInputs);
-    els.paperH.addEventListener("input", setPaperFromInputs);
     els.marginRange.addEventListener("input", () => updateActivePhoto({ margin: Number(els.marginRange.value) }));
-    els.zoomRange.addEventListener("input", () => updateActivePhoto({ zoom: Number(els.zoomRange.value) }));
     els.rotateRange.addEventListener("input", () => updateActivePhoto({ rotate: Number(els.rotateRange.value) }));
     els.rotateLeftBtn.addEventListener("click", () => rotateActivePhoto(-90));
     els.rotateRightBtn.addEventListener("click", () => rotateActivePhoto(90));
     els.fitBtn.addEventListener("click", resetActivePhoto);
     els.printBtn.addEventListener("click", printAll);
-    els.downloadBtn.addEventListener("click", downloadCurrentPage);
+    els.downloadBtn.addEventListener("click", downloadAllPages);
     window.addEventListener("resize", () => renderSheet());
 
     window.photoSplitApp = {
@@ -1295,6 +1383,12 @@
       preparePrint,
       schedulePrintBuild
     };
+
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./sw.js").catch(() => {});
+      });
+    }
 
     render();
   </script>
