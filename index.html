@@ -711,6 +711,10 @@
             <label for="marginRange">四周白边 <output id="marginOut">0.18 in</output></label>
             <input id="marginRange" type="range" min="0" max="0.35" value="0.18" step="0.01">
           </div>
+          <div class="field">
+            <label for="zoomRange">照片缩放 <output id="zoomOut">100%</output></label>
+            <input id="zoomRange" type="range" min="0.5" max="2" value="1" step="0.01">
+          </div>
           <div class="inline-grid">
             <button class="btn" id="rotateLeftBtn" type="button" disabled title="向左旋转 90 度">
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h9a7 7 0 1 1-6.33 10M4 7l4-4M4 7l4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -775,10 +779,12 @@
       landscapeBtn: document.getElementById("landscapeBtn"),
       portraitBtn: document.getElementById("portraitBtn"),
       marginRange: document.getElementById("marginRange"),
+      zoomRange: document.getElementById("zoomRange"),
       rotateRange: document.getElementById("rotateRange"),
       rotateLeftBtn: document.getElementById("rotateLeftBtn"),
       rotateRightBtn: document.getElementById("rotateRightBtn"),
       marginOut: document.getElementById("marginOut"),
+      zoomOut: document.getElementById("zoomOut"),
       rotateOut: document.getElementById("rotateOut"),
       photoList: document.getElementById("photoList"),
       photoHint: document.getElementById("photoHint"),
@@ -830,10 +836,13 @@
     function updateOutputs() {
       const active = getActivePhoto();
       const margin = active ? active.margin : Number(els.marginRange.value);
+      const zoom = active ? active.zoom : Number(els.zoomRange.value);
       const rotate = active ? active.rotate : Number(els.rotateRange.value);
       els.marginRange.value = margin;
+      els.zoomRange.value = zoom;
       els.rotateRange.value = normalizeRotation(rotate);
       els.marginOut.value = `${Number(margin).toFixed(2)} in`;
+      els.zoomOut.value = `${Math.round(zoom * 100)}%`;
       els.rotateOut.value = `${Math.round(normalizeRotation(rotate))}°`;
     }
 
@@ -854,7 +863,7 @@
       els.fitBtn.disabled = !getActivePhoto();
       els.rotateLeftBtn.disabled = !getActivePhoto();
       els.rotateRightBtn.disabled = !getActivePhoto();
-      [els.marginRange, els.rotateRange].forEach(input => {
+      [els.marginRange, els.zoomRange, els.rotateRange].forEach(input => {
         input.disabled = !getActivePhoto();
       });
     }
@@ -961,8 +970,8 @@
       const rotatedWidth = Math.abs(baseWidth * Math.cos(angle)) + Math.abs(baseHeight * Math.sin(angle));
       const rotatedHeight = Math.abs(baseWidth * Math.sin(angle)) + Math.abs(baseHeight * Math.cos(angle));
       const rotationFit = Math.min(frameRect.width / rotatedWidth, frameRect.height / rotatedHeight, 1);
-      const width = baseWidth * rotationFit;
-      const height = baseHeight * rotationFit;
+      const width = baseWidth * rotationFit * photo.zoom;
+      const height = baseHeight * rotationFit * photo.zoom;
       return {
         width,
         height,
@@ -1130,7 +1139,7 @@
     }
 
     function resetActivePhoto() {
-      updateActivePhoto({ margin: 0.18, rotate: 0, x: 0, y: 0 });
+      updateActivePhoto({ margin: 0.18, zoom: 1, rotate: 0, x: 0, y: 0 });
       showToast("已重置当前照片。");
     }
 
@@ -1179,8 +1188,8 @@
         const rotatedW = Math.abs(baseW * Math.cos(angle)) + Math.abs(baseH * Math.sin(angle));
         const rotatedH = Math.abs(baseW * Math.sin(angle)) + Math.abs(baseH * Math.cos(angle));
         const rotationFit = Math.min(frame.width / rotatedW, frame.height / rotatedH, 1);
-        const drawW = baseW * rotationFit;
-        const drawH = baseH * rotationFit;
+        const drawW = baseW * rotationFit * photo.zoom;
+        const drawH = baseH * rotationFit * photo.zoom;
         const cx = frame.x + frame.width / 2 + (photo.x / 100) * frame.width * 0.5;
         const cy = frame.y + frame.height / 2 + (photo.y / 100) * frame.height * 0.5;
         ctx.save();
@@ -1367,6 +1376,7 @@
       setOrientation("portrait");
     });
     els.marginRange.addEventListener("input", () => updateActivePhoto({ margin: Number(els.marginRange.value) }));
+    els.zoomRange.addEventListener("input", () => updateActivePhoto({ zoom: Number(els.zoomRange.value) }));
     els.rotateRange.addEventListener("input", () => updateActivePhoto({ rotate: Number(els.rotateRange.value) }));
     els.rotateLeftBtn.addEventListener("click", () => rotateActivePhoto(-90));
     els.rotateRightBtn.addEventListener("click", () => rotateActivePhoto(90));
