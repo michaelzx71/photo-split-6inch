@@ -77,28 +77,9 @@
     .topbar {
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: flex-end;
       gap: 14px;
       margin-bottom: 14px;
-    }
-
-    .brand {
-      min-width: 0;
-    }
-
-    h1 {
-      margin: 0;
-      font-size: clamp(24px, 7vw, 42px);
-      line-height: 1.03;
-      font-weight: 850;
-      letter-spacing: 0;
-    }
-
-    .subtitle {
-      margin: 8px 0 0;
-      color: var(--muted);
-      font-size: 14px;
-      line-height: 1.45;
     }
 
     .toolbar {
@@ -409,7 +390,7 @@
     .slot-inner {
       position: absolute;
       inset: var(--margin, 0.18in);
-      background: #f2eee6;
+      background: #fff1f1;
       overflow: hidden;
     }
 
@@ -519,14 +500,6 @@
         margin-bottom: 10px;
       }
 
-      h1 {
-        font-size: 30px;
-      }
-
-      .subtitle {
-        font-size: 13px;
-      }
-
       .toolbar {
         justify-content: stretch;
       }
@@ -562,12 +535,11 @@
 
       .sheet-scroll {
         padding: 8px 10px;
-        max-height: 43vh;
-        overflow: hidden;
+        overflow: visible;
       }
 
       .sheet {
-        --sheet-w: min(100%, 360px);
+        --sheet-w: min(100%, 300px);
         box-shadow: 0 10px 24px rgba(40, 34, 24, 0.22);
       }
 
@@ -577,6 +549,12 @@
 
       .inline-grid {
         grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    @media (max-width: 420px) {
+      .sheet {
+        --sheet-w: min(100%, 260px);
       }
     }
 
@@ -670,10 +648,6 @@
 <body>
   <main class="app">
     <header class="topbar">
-      <div class="brand">
-        <h1>六寸打两张三寸</h1>
-        <p class="subtitle">上传照片后自动两张拼一页，留白、方向、旋转和位置都能调。手机上可下载全部拼版或打印。</p>
-      </div>
       <div class="toolbar" aria-label="主要操作">
         <button class="btn" id="downloadBtn" type="button" disabled title="下载全部拼版图片">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v11m0 0 4-4m-4 4-4-4M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -704,7 +678,7 @@
           </div>
           <div class="field">
             <label for="zoomRange">照片缩放 <output id="zoomOut">100%</output></label>
-            <input id="zoomRange" type="range" min="0.5" max="2" value="1" step="0.01">
+            <input id="zoomRange" type="range" min="0.5" max="5" value="1" step="0.01">
           </div>
           <div class="inline-grid">
             <button class="btn" id="rotateLeftBtn" type="button" disabled title="向左旋转 90 度">
@@ -733,7 +707,7 @@
       <section class="panel preview-area">
         <div class="sheet-actions">
           <div class="counter" id="counter">请选择照片开始排版</div>
-          <button class="btn" id="fitBtn" type="button" disabled title="重置当前照片裁切">
+          <button class="btn" id="fitBtn" type="button" disabled title="按当前方向填满画面">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3m8 0h3a2 2 0 0 0 2-2v-3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
             适配
           </button>
@@ -938,7 +912,7 @@
       return "grid-template-rows: repeat(2, 1fr); grid-template-columns: 1fr;";
     }
 
-    function imageTransform(photo, frameRect) {
+    function photoFitMetrics(photo, frameRect) {
       const frameRatio = frameRect.width / frameRect.height;
       const imageRatio = photo.width / photo.height;
       const baseWidth = imageRatio > frameRatio ? frameRect.width : frameRect.height * imageRatio;
@@ -947,8 +921,29 @@
       const rotatedWidth = Math.abs(baseWidth * Math.cos(angle)) + Math.abs(baseHeight * Math.sin(angle));
       const rotatedHeight = Math.abs(baseWidth * Math.sin(angle)) + Math.abs(baseHeight * Math.cos(angle));
       const rotationFit = Math.min(frameRect.width / rotatedWidth, frameRect.height / rotatedHeight, 1);
-      const width = baseWidth * rotationFit * photo.zoom;
-      const height = baseHeight * rotationFit * photo.zoom;
+      return {
+        baseWidth,
+        baseHeight,
+        rotationFit,
+        fittedRotatedWidth: rotatedWidth * rotationFit,
+        fittedRotatedHeight: rotatedHeight * rotationFit
+      };
+    }
+
+    function coverZoomForFrame(photo, frameRect) {
+      const metrics = photoFitMetrics(photo, frameRect);
+      const zoom = Math.max(
+        frameRect.width / metrics.fittedRotatedWidth,
+        frameRect.height / metrics.fittedRotatedHeight,
+        1
+      );
+      return clamp(Math.ceil(zoom * 100) / 100, 0.5, 5);
+    }
+
+    function imageTransform(photo, frameRect) {
+      const metrics = photoFitMetrics(photo, frameRect);
+      const width = metrics.baseWidth * metrics.rotationFit * photo.zoom;
+      const height = metrics.baseHeight * metrics.rotationFit * photo.zoom;
       return {
         width,
         height,
@@ -1115,9 +1110,19 @@
       render();
     }
 
-    function resetActivePhoto() {
-      updateActivePhoto({ margin: 0.18, zoom: 1, rotate: 0, x: 0, y: 0 });
-      showToast("已重置当前照片。");
+    function activePhotoFrameRect(photoId) {
+      const slot = Array.from(els.sheet.querySelectorAll(".slot"))
+        .find(item => item.dataset.photoId === photoId);
+      return slot?.querySelector(".slot-inner")?.getBoundingClientRect();
+    }
+
+    function fitActivePhoto() {
+      const active = getActivePhoto();
+      const rect = active ? activePhotoFrameRect(active.id) : null;
+      if (!active || !rect) return;
+      const zoom = coverZoomForFrame(active, rect);
+      updateActivePhoto({ zoom, x: 0, y: 0 });
+      showToast("已按当前方向填满画面。");
     }
 
     function rotateActivePhoto(delta) {
@@ -1157,16 +1162,10 @@
           height: slotH - marginPx * 2
         };
         const img = await loadImage(photo.url);
-        const frameRatio = frame.width / frame.height;
-        const imageRatio = photo.width / photo.height;
-        const baseW = imageRatio > frameRatio ? frame.width : frame.height * imageRatio;
-        const baseH = imageRatio > frameRatio ? frame.width / imageRatio : frame.height;
         const angle = (normalizeRotation(photo.rotate) * Math.PI) / 180;
-        const rotatedW = Math.abs(baseW * Math.cos(angle)) + Math.abs(baseH * Math.sin(angle));
-        const rotatedH = Math.abs(baseW * Math.sin(angle)) + Math.abs(baseH * Math.cos(angle));
-        const rotationFit = Math.min(frame.width / rotatedW, frame.height / rotatedH, 1);
-        const drawW = baseW * rotationFit * photo.zoom;
-        const drawH = baseH * rotationFit * photo.zoom;
+        const metrics = photoFitMetrics(photo, frame);
+        const drawW = metrics.baseWidth * metrics.rotationFit * photo.zoom;
+        const drawH = metrics.baseHeight * metrics.rotationFit * photo.zoom;
         const cx = frame.x + frame.width / 2 + (photo.x / 100) * frame.width * 0.5;
         const cy = frame.y + frame.height / 2 + (photo.y / 100) * frame.height * 0.5;
         ctx.save();
@@ -1346,7 +1345,7 @@
     els.rotateRange.addEventListener("input", () => updateActivePhoto({ rotate: Number(els.rotateRange.value) }));
     els.rotateLeftBtn.addEventListener("click", () => rotateActivePhoto(-90));
     els.rotateRightBtn.addEventListener("click", () => rotateActivePhoto(90));
-    els.fitBtn.addEventListener("click", resetActivePhoto);
+    els.fitBtn.addEventListener("click", fitActivePhoto);
     els.printBtn.addEventListener("click", printAll);
     els.downloadBtn.addEventListener("click", downloadAllPages);
     window.addEventListener("resize", () => renderSheet());
