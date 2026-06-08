@@ -697,15 +697,6 @@
         </label>
 
         <section class="section">
-          <p class="section-title">相纸方向</p>
-          <div class="segmented" role="group" aria-label="相纸方向">
-            <button id="landscapeBtn" class="active" type="button">横向 6x4</button>
-            <button id="portraitBtn" type="button">竖向 4x6</button>
-          </div>
-          <p class="hint">横向会左右放两张，竖向会上下放两张。</p>
-        </section>
-
-        <section class="section">
           <p class="section-title">白边与裁切</p>
           <div class="field">
             <label for="marginRange">四周白边 <output id="marginOut">0.18 in</output></label>
@@ -763,10 +754,10 @@
   <script>
     const state = {
       photos: [],
-      orientation: "landscape",
+      orientation: "portrait",
       activePage: 0,
       activePhotoId: null,
-      paper: { w: 6, h: 4 },
+      paper: { w: 4, h: 6 },
       pointer: null,
       printReady: false,
       printBuildId: 0,
@@ -776,8 +767,6 @@
 
     const els = {
       fileInput: document.getElementById("fileInput"),
-      landscapeBtn: document.getElementById("landscapeBtn"),
-      portraitBtn: document.getElementById("portraitBtn"),
       marginRange: document.getElementById("marginRange"),
       zoomRange: document.getElementById("zoomRange"),
       rotateRange: document.getElementById("rotateRange"),
@@ -844,15 +833,6 @@
       els.marginOut.value = `${Number(margin).toFixed(2)} in`;
       els.zoomOut.value = `${Math.round(zoom * 100)}%`;
       els.rotateOut.value = `${Math.round(normalizeRotation(rotate))}°`;
-    }
-
-    function setOrientation(orientation) {
-      state.orientation = orientation;
-      const isPortrait = orientation === "portrait";
-      els.landscapeBtn.classList.toggle("active", !isPortrait);
-      els.portraitBtn.classList.toggle("active", isPortrait);
-      state.paper = isPortrait ? { w: 4, h: 6 } : { w: 6, h: 4 };
-      render();
     }
 
     function updateControlAvailability() {
@@ -955,10 +935,7 @@
     }
 
     function slotGridStyle() {
-      if (state.orientation === "portrait") {
-        return "grid-template-rows: repeat(2, 1fr); grid-template-columns: 1fr;";
-      }
-      return "grid-template-columns: repeat(2, 1fr); grid-template-rows: 1fr;";
+      return "grid-template-rows: repeat(2, 1fr); grid-template-columns: 1fr;";
     }
 
     function imageTransform(photo, frameRect) {
@@ -1072,7 +1049,7 @@
       const photos = pagePhotos();
       els.emptyState.hidden = state.photos.length > 0;
       els.sheet.hidden = !state.photos.length;
-      els.sheet.classList.toggle("portrait", state.orientation === "portrait");
+      els.sheet.classList.add("portrait");
       els.sheet.style = slotGridStyle();
       els.sheet.innerHTML = "";
       for (let i = 0; i < 2; i += 1) {
@@ -1087,7 +1064,7 @@
       els.printRoot.innerHTML = "";
       for (let page = 0; page < pageCount(); page += 1) {
         const printPage = document.createElement("div");
-        printPage.className = `print-page${state.orientation === "portrait" ? " portrait" : ""}`;
+        printPage.className = "print-page portrait";
         printPage.style.cssText = slotGridStyle();
         pagePhotos(page).forEach(photo => {
           const slot = document.createElement("div");
@@ -1166,12 +1143,12 @@
       const ctx = canvas.getContext("2d");
       ctx.fillStyle = "#fff";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      const slotW = state.orientation === "portrait" ? canvas.width : canvas.width / 2;
-      const slotH = state.orientation === "portrait" ? canvas.height / 2 : canvas.height;
+      const slotW = canvas.width;
+      const slotH = canvas.height / 2;
 
       for (const [i, photo] of pagePhotos(pageIndex).entries()) {
-        const slotX = state.orientation === "portrait" ? 0 : i * slotW;
-        const slotY = state.orientation === "portrait" ? i * slotH : 0;
+        const slotX = 0;
+        const slotY = i * slotH;
         const marginPx = photo.margin * scale;
         const frame = {
           x: slotX + marginPx,
@@ -1211,13 +1188,8 @@
       ctx.lineWidth = 1;
       ctx.setLineDash([10, 12]);
       ctx.beginPath();
-      if (state.orientation === "portrait") {
-        ctx.moveTo(0, height / 2);
-        ctx.lineTo(width, height / 2);
-      } else {
-        ctx.moveTo(width / 2, 0);
-        ctx.lineTo(width / 2, height);
-      }
+      ctx.moveTo(0, height / 2);
+      ctx.lineTo(width, height / 2);
       ctx.stroke();
       ctx.restore();
     }
@@ -1300,7 +1272,7 @@
         const url = URL.createObjectURL(blob);
         urls.push(url);
         const printPage = document.createElement("div");
-        printPage.className = `print-page${state.orientation === "portrait" ? " portrait" : ""}`;
+        printPage.className = "print-page portrait";
         const img = document.createElement("img");
         img.className = "print-canvas";
         img.alt = "";
@@ -1369,12 +1341,6 @@
     }
 
     els.fileInput.addEventListener("change", event => handleFiles(event.target.files));
-    els.landscapeBtn.addEventListener("click", () => {
-      setOrientation("landscape");
-    });
-    els.portraitBtn.addEventListener("click", () => {
-      setOrientation("portrait");
-    });
     els.marginRange.addEventListener("input", () => updateActivePhoto({ margin: Number(els.marginRange.value) }));
     els.zoomRange.addEventListener("input", () => updateActivePhoto({ zoom: Number(els.zoomRange.value) }));
     els.rotateRange.addEventListener("input", () => updateActivePhoto({ rotate: Number(els.rotateRange.value) }));
