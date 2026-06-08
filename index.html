@@ -140,14 +140,7 @@
       overflow: hidden;
     }
 
-    .upload {
-      display: block;
-      padding: 18px;
-      background: #fbf7ed;
-      border-bottom: 1px solid rgba(31, 35, 40, 0.1);
-    }
-
-    .upload input {
+    .file-input {
       position: absolute;
       width: 1px;
       height: 1px;
@@ -156,23 +149,8 @@
       white-space: nowrap;
     }
 
-    .upload-box {
-      min-height: 108px;
-      display: grid;
-      place-items: center;
-      gap: 8px;
-      padding: 16px;
-      border: 1.5px dashed #b5a98e;
-      border-radius: var(--radius);
-      color: var(--muted);
-      text-align: center;
-      background: #fffdf8;
-    }
-
-    .upload-box strong {
-      display: block;
-      color: var(--ink);
-      font-size: 16px;
+    .upload-btn {
+      cursor: pointer;
     }
 
     .section {
@@ -649,6 +627,11 @@
   <main class="app">
     <header class="topbar">
       <div class="toolbar" aria-label="主要操作">
+        <label class="btn upload-btn" title="选择多张照片">
+          <input class="file-input" id="fileInput" type="file" accept="image/*" multiple>
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 16V4m0 0 4 4m-4-4-4 4M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          上传
+        </label>
         <button class="btn" id="downloadBtn" type="button" disabled title="下载全部拼版图片">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v11m0 0 4-4m-4 4-4-4M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           下载
@@ -662,14 +645,6 @@
 
     <div class="main">
       <aside class="panel controls">
-        <label class="upload">
-          <input id="fileInput" type="file" accept="image/*" multiple>
-          <span class="upload-box">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 16V4m0 0 4 4m-4-4-4 4M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            <span><strong>选择多张照片</strong>一次会自动每两张排成一页</span>
-          </span>
-        </label>
-
         <section class="section">
           <p class="section-title">白边与裁切</p>
           <div class="field">
