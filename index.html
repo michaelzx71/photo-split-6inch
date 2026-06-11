@@ -35,13 +35,12 @@
 
     html,
     body {
-      min-height: 100%;
+      height: 100%;
+      overflow: hidden;
     }
 
     body {
       margin: 0;
-      overflow-x: hidden;
-      overscroll-behavior-x: none;
       background:
         linear-gradient(135deg, rgba(15, 127, 110, 0.08), transparent 34%),
         linear-gradient(225deg, rgba(191, 90, 62, 0.08), transparent 38%),
@@ -70,23 +69,21 @@
 
     .app {
       width: min(1120px, 100%);
+      height: 100%;
       margin: 0 auto;
-      padding: 18px 14px 32px;
+      padding: 12px 10px 8px;
+      display: flex;
+      flex-direction: column;
     }
 
     .topbar {
-      display: flex;
-      align-items: center;
-      justify-content: flex-end;
-      gap: 14px;
       margin-bottom: 14px;
     }
 
     .toolbar {
-      display: flex;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 8px;
-      flex-wrap: wrap;
-      justify-content: flex-end;
     }
 
     .btn {
@@ -121,10 +118,11 @@
     }
 
     .main {
+      flex: 1;
       display: grid;
       grid-template-columns: 360px minmax(0, 1fr);
-      gap: 16px;
-      align-items: start;
+      gap: 12px;
+      overflow: hidden;
     }
 
     .panel {
@@ -132,12 +130,14 @@
       border: 1px solid rgba(31, 35, 40, 0.1);
       border-radius: var(--radius);
       box-shadow: var(--shadow);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
     }
 
     .controls {
-      position: sticky;
-      top: 12px;
-      overflow: hidden;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
     }
 
     .file-input {
@@ -154,19 +154,17 @@
     }
 
     .section {
-      padding: 16px 18px;
-      border-top: 1px solid rgba(31, 35, 40, 0.08);
+      padding: 14px 16px;
+    }
+    .section + .section {
+      border-top: 1px solid rgba(31, 35, 40, 0.06);
     }
 
     .section:first-of-type {
       border-top: 0;
     }
 
-    .section-title {
-      margin: 0 0 10px;
-      font-size: 14px;
-      font-weight: 820;
-    }
+
 
     .segmented {
       display: grid;
@@ -192,34 +190,69 @@
     }
 
     .field {
-      display: grid;
+      display: flex;
+      align-items: center;
       gap: 8px;
-      margin-top: 12px;
+      margin-bottom: 14px;
     }
 
     .field label {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      color: var(--muted);
-      font-size: 13px;
+      flex: 0 0 auto;
+      white-space: nowrap;
+      font-size: 14px;
       font-weight: 700;
+      color: var(--ink);
+      min-width: 52px;
+    }
+
+    .field input[type="range"] {
+      flex: 1 1 auto;
+      min-width: 0;
+      accent-color: var(--accent);
     }
 
     .field output {
-      color: var(--ink);
+      flex: 0 0 auto;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
       font-variant-numeric: tabular-nums;
+      background: rgba(31, 35, 40, 0.04);
+      padding: 2px 8px;
+      border-radius: 4px;
+      min-width: 56px;
+      text-align: right;
     }
+
+
 
     input[type="range"] {
       width: 100%;
+      height: 6px;
       accent-color: var(--accent);
+      cursor: pointer;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      width: 18px;
+      height: 18px;
     }
 
     .inline-grid {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
+      margin-top: 2px;
+    }
+    .inline-grid .btn {
+      min-height: 36px;
+      font-size: 13px;
+      font-weight: 700;
+      border-radius: 8px;
+      gap: 4px;
+    }
+    .inline-grid .btn svg {
+      width: 16px;
+      height: 16px;
     }
 
     .number-input {
@@ -234,27 +267,28 @@
     }
 
     .hint {
-      margin: 8px 0 0;
+      margin: 0;
       color: var(--muted);
       font-size: 12px;
       line-height: 1.45;
     }
 
     .photo-list {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 8px;
-      max-height: 214px;
-      overflow: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
     }
 
     .thumb {
       position: relative;
-      aspect-ratio: 1;
+      width: 64px;
+      height: 64px;
+      flex: 0 0 auto;
       border-radius: 6px;
       overflow: hidden;
       background: #e8e1d4;
       border: 2px solid transparent;
+      cursor: pointer;
     }
 
     .thumb.active {
@@ -270,30 +304,76 @@
 
     .thumb span {
       position: absolute;
-      left: 5px;
-      top: 5px;
-      min-width: 20px;
-      height: 20px;
+      left: 3px;
+      top: 3px;
+      min-width: 16px;
+      height: 16px;
       display: grid;
       place-items: center;
       border-radius: 999px;
-      background: rgba(0, 0, 0, 0.62);
+      background: rgba(0, 0, 0, 0.55);
       color: #fff;
-      font-size: 11px;
-      font-weight: 800;
+      font-size: 10px;
+      font-weight: 700;
+      pointer-events: none;
+    }
+
+    .thumb .thumb-del {
+      position: absolute;
+      right: 0;
+      top: 0;
+      width: 18px;
+      height: 18px;
+      display: grid;
+      place-items: center;
+      border: 0;
+      border-radius: 0 6px 0 6px;
+      background: rgba(0, 0, 0, 0.45);
+      color: #fff;
+      font-size: 10px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 0;
+      opacity: 0.7;
+    }
+
+    .thumb:hover .thumb-del {
+      opacity: 1;
+      background: var(--danger);
     }
 
     .preview-area {
-      display: grid;
-      gap: 14px;
+      flex: 1;
+      display: flex;
+      flex-direction: row;
+      gap: 0;
+      overflow: hidden;
     }
 
-    .sheet-actions {
+    .photo-strip {
+      width: 72px;
+      flex: 0 0 auto;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 6px 4px;
+      border-right: 1px solid rgba(31, 35, 40, 0.08);
+    }
+
+    .sheet-main {
+      flex: 1 1 auto;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .sheet-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
       gap: 10px;
-      padding: 12px 14px;
+      padding: 8px 12px;
+      flex: 0 0 auto;
     }
 
     .counter {
@@ -303,9 +383,10 @@
     }
 
     .sheet-scroll {
-      width: 100%;
+      flex: 1;
       overflow: auto;
-      padding: 18px;
+      padding: 12px;
+      -webkit-overflow-scrolling: touch;
     }
 
     .sheet {
@@ -404,6 +485,7 @@
 
     .page-strip {
       display: flex;
+      justify-content: center;
       gap: 8px;
       padding: 0 14px 14px;
       overflow: auto;
@@ -474,22 +556,15 @@
       }
 
       .topbar {
-        display: grid;
         margin-bottom: 10px;
       }
 
-      .toolbar {
-        justify-content: stretch;
-      }
-
-      .toolbar .btn {
-        flex: 1 1 0;
-      }
-
       .main {
+        flex: 1;
         display: grid;
         grid-template-columns: 1fr;
         gap: 10px;
+        overflow: hidden;
       }
 
       .controls {
@@ -507,7 +582,7 @@
         background: #fffaf0;
       }
 
-      .sheet-actions {
+      .sheet-header {
         padding: 8px 10px;
       }
 
@@ -526,7 +601,7 @@
       }
 
       .inline-grid {
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: 1fr 1fr 1fr;
       }
     }
 
@@ -646,16 +721,17 @@
     <div class="main">
       <aside class="panel controls">
         <section class="section">
-          <p class="section-title">白边与裁切</p>
           <div class="field">
-            <label for="marginRange">四周白边 <output id="marginOut">0.18 in</output></label>
+            <label for="marginRange">白边宽度</label>
             <input id="marginRange" type="range" min="0" max="0.35" value="0.18" step="0.01">
+            <output id="marginOut">0.18 in</output>
           </div>
           <div class="field">
-            <label for="zoomRange">照片缩放 <output id="zoomOut">100%</output></label>
+            <label for="zoomRange">照片缩放</label>
             <input id="zoomRange" type="range" min="0.5" max="5" value="1" step="0.01">
+            <output id="zoomOut">100%</output>
           </div>
-          <div class="inline-grid">
+          <div class="inline-grid" style="grid-template-columns: repeat(3, minmax(0, 1fr));">
             <button class="btn" id="rotateLeftBtn" type="button" disabled title="向左旋转 90 度">
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h9a7 7 0 1 1-6.33 10M4 7l4-4M4 7l4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
               左转
@@ -664,34 +740,29 @@
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 7h-9a7 7 0 1 0 6.33 10M20 7l-4-4M20 7l-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
               右转
             </button>
+            <button class="btn" id="fitBtn" type="button" disabled title="按当前方向填满画面">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3m8 0h3a2 2 0 0 0 2-2v-3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              适配
+            </button>
           </div>
-          <div class="field">
-            <label for="rotateRange">微调旋转 <output id="rotateOut">0°</output></label>
-            <input id="rotateRange" type="range" min="-180" max="180" value="0" step="1">
-          </div>
-          <p class="hint">点预览里的照片选中，直接拖动照片调整位置。</p>
-        </section>
-
-        <section class="section">
-          <p class="section-title">已选照片</p>
-          <div id="photoList" class="photo-list" aria-label="已选照片"></div>
-          <p class="hint" id="photoHint">还没有照片。</p>
         </section>
       </aside>
 
       <section class="panel preview-area">
-        <div class="sheet-actions">
-          <div class="counter" id="counter">请选择照片开始排版</div>
-          <button class="btn" id="fitBtn" type="button" disabled title="按当前方向填满画面">
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3m8 0h3a2 2 0 0 0 2-2v-3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            适配
-          </button>
+        <div class="photo-strip">
+          <div id="photoList" class="photo-list" aria-label="已选照片"></div>
+          <p class="hint" id="photoHint"></p>
+        </div>
+        <div class="sheet-main">
+        <div class="sheet-header">
+          <div class="counter" id="counter"></div>
         </div>
         <div class="sheet-scroll">
-          <div id="emptyState" class="empty-state">上传照片后，这里会显示 6 寸相纸预览。</div>
+          <div id="emptyState" class="empty-state"></div>
           <div id="sheet" class="sheet" hidden aria-label="打印预览"></div>
         </div>
         <div id="pageStrip" class="page-strip" aria-label="页面选择"></div>
+        </div>
       </section>
     </div>
   </main>
@@ -849,21 +920,48 @@
     function renderPhotoList() {
       els.photoList.innerHTML = "";
       state.photos.forEach((photo, index) => {
-        const button = document.createElement("button");
-        button.className = `thumb${photo.id === state.activePhotoId ? " active" : ""}`;
-        button.type = "button";
-        button.title = photo.name;
-        button.innerHTML = `<img alt="" src="${photo.url}"><span>${index + 1}</span>`;
-        button.addEventListener("click", () => {
+        const thumb = document.createElement("div");
+        thumb.className = `thumb${photo.id === state.activePhotoId ? " active" : ""}`;
+        thumb.setAttribute("role", "button");
+        thumb.setAttribute("tabindex", "0");
+        thumb.title = photo.name;
+        thumb.innerHTML = `<img alt="" src="${photo.url}"><span>${index + 1}</span>`;
+        thumb.addEventListener("click", () => {
           state.activePage = Math.floor(index / 2);
           state.activePhotoId = photo.id;
           render();
         });
-        els.photoList.appendChild(button);
+        const del = document.createElement("button");
+        del.className = "thumb-del";
+        del.textContent = "✕";
+        del.setAttribute("aria-label", `删除 ${photo.name}`);
+        del.addEventListener("click", (event) => {
+          event.stopPropagation();
+          event.preventDefault();
+          deletePhoto(photo.id);
+        });
+        thumb.appendChild(del);
+        els.photoList.appendChild(thumb);
       });
-      els.photoHint.textContent = state.photos.length
-        ? `${state.photos.length} 张照片，共 ${pageCount()} 页六寸相纸。`
-        : "还没有照片。";
+      els.photoHint.hidden = true;
+    }
+
+    function deletePhoto(photoId) {
+      const index = state.photos.findIndex(p => p.id === photoId);
+      if (index === -1) return;
+      const photo = state.photos[index];
+      if (photo.url.startsWith("blob:")) URL.revokeObjectURL(photo.url);
+      state.photos.splice(index, 1);
+      if (state.photos.length === 0) {
+        state.activePage = 0;
+        state.activePhotoId = null;
+      } else if (state.activePhotoId === photoId) {
+        const newIndex = Math.min(index, state.photos.length - 1);
+        state.activePhotoId = state.photos[newIndex].id;
+        state.activePage = Math.floor(newIndex / 2);
+      }
+      render();
+      showToast(`已删除照片，剩余 ${state.photos.length} 张。`);
     }
 
     function renderPageStrip() {
@@ -1017,17 +1115,15 @@
     function renderSheet() {
       ensureActivePhoto();
       const photos = pagePhotos();
-      els.emptyState.hidden = state.photos.length > 0;
-      els.sheet.hidden = !state.photos.length;
+      els.emptyState.hidden = true;
+      els.sheet.hidden = false;
       els.sheet.classList.add("portrait");
       els.sheet.style = slotGridStyle();
       els.sheet.innerHTML = "";
       for (let i = 0; i < 2; i += 1) {
         els.sheet.appendChild(renderSlot(photos[i], i));
       }
-      els.counter.textContent = state.photos.length
-        ? `第 ${state.activePage + 1} / ${pageCount()} 页，当前调第 ${(state.photos.findIndex(p => p.id === state.activePhotoId) + 1) || 1} 张`
-        : "请选择照片开始排版";
+      els.counter.textContent = "";
     }
 
     function renderPrintRoot() {
@@ -1317,7 +1413,6 @@
     els.fileInput.addEventListener("change", event => handleFiles(event.target.files));
     els.marginRange.addEventListener("input", () => updateActivePhoto({ margin: Number(els.marginRange.value) }));
     els.zoomRange.addEventListener("input", () => updateActivePhoto({ zoom: Number(els.zoomRange.value) }));
-    els.rotateRange.addEventListener("input", () => updateActivePhoto({ rotate: Number(els.rotateRange.value) }));
     els.rotateLeftBtn.addEventListener("click", () => rotateActivePhoto(-90));
     els.rotateRightBtn.addEventListener("click", () => rotateActivePhoto(90));
     els.fitBtn.addEventListener("click", fitActivePhoto);
