@@ -1023,6 +1023,43 @@
       };
     }
 
+    function currentRenderedSlot(photoId) {
+      return Array.from(els.sheet.querySelectorAll(".slot"))
+        .find(item => item.dataset.photoId === photoId) || null;
+    }
+
+    function updateActiveVisualState() {
+      els.photoList.querySelectorAll(".thumb").forEach((thumb, index) => {
+        thumb.classList.toggle("active", state.photos[index]?.id === state.activePhotoId);
+      });
+      els.sheet.querySelectorAll(".slot").forEach(slot => {
+        slot.classList.toggle("active", slot.dataset.photoId === state.activePhotoId);
+      });
+    }
+
+    function applyPhotoToRenderedSlot(photo) {
+      const slot = currentRenderedSlot(photo.id);
+      if (!slot) return false;
+      slot.style.setProperty("--margin", `${photo.margin}in`);
+      const frame = slot.querySelector(".slot-inner");
+      const img = slot.querySelector("img");
+      if (!frame || !img) return false;
+      const t = imageTransform(photo, frame.getBoundingClientRect());
+      img.style.width = `${t.width}px`;
+      img.style.height = `${t.height}px`;
+      img.style.left = t.left;
+      img.style.top = t.top;
+      img.style.transform = t.transform;
+      return true;
+    }
+
+    function selectRenderedPhoto(photoId) {
+      state.activePhotoId = photoId;
+      updateActiveVisualState();
+      updateOutputs();
+      updateControlAvailability();
+    }
+
     function renderSlot(photo, slotIndex) {
       const slot = document.createElement("button");
       slot.type = "button";
@@ -1051,8 +1088,7 @@
       });
 
       slot.addEventListener("click", () => {
-        state.activePhotoId = photo.id;
-        render();
+        selectRenderedPhoto(photo.id);
       });
 
       slot.addEventListener("pointerdown", event => {
@@ -1065,7 +1101,7 @@
           y: photo.y
         };
         slot.setPointerCapture(event.pointerId);
-        renderPhotoList();
+        updateActiveVisualState();
         updateOutputs();
       });
 
@@ -1175,7 +1211,14 @@
       const active = getActivePhoto();
       if (!active) return;
       Object.assign(active, patch);
-      render();
+      updateOutputs();
+      updateActiveVisualState();
+      if (!applyPhotoToRenderedSlot(active)) {
+        render();
+        return;
+      }
+      updateControlAvailability();
+      schedulePrintBuild(500);
     }
 
     function activePhotoFrameRect(photoId) {
