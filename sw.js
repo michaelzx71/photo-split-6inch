@@ -1,4 +1,4 @@
-const CACHE_NAME = "photo-split-v7";
+const CACHE_NAME = "photo-split-v8";
 const APP_SHELL = [
   "./",
   "./index.html",

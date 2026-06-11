@@ -784,7 +784,8 @@
       printReady: false,
       printBuildId: 0,
       printTimer: null,
-      printUrls: []
+      printUrls: [],
+      printPdfUrl: null
     };
 
     const els = {
@@ -1265,6 +1266,74 @@
       return new Promise(resolve => canvas.toBlob(resolve, type, quality));
     }
 
+    function concatBytes(parts) {
+      const encoder = new TextEncoder();
+      const bytes = parts.map(part => typeof part === "string" ? encoder.encode(part) : part);
+      const total = bytes.reduce((sum, part) => sum + part.length, 0);
+      const out = new Uint8Array(total);
+      let offset = 0;
+      bytes.forEach(part => {
+        out.set(part, offset);
+        offset += part.length;
+      });
+      return out;
+    }
+
+    async function blobToBytes(blob) {
+      return new Uint8Array(await blob.arrayBuffer());
+    }
+
+    function createPdfBlobFromJpegs(jpegs) {
+      const pageW = state.paper.w * 72;
+      const pageH = state.paper.h * 72;
+      const chunks = [];
+      const offsets = [0];
+      let length = 0;
+      const add = part => {
+        const bytes = typeof part === "string" ? new TextEncoder().encode(part) : part;
+        chunks.push(bytes);
+        length += bytes.length;
+      };
+      const addObject = (num, parts) => {
+        offsets[num] = length;
+        add(`${num} 0 obj\n`);
+        parts.forEach(add);
+        add("\nendobj\n");
+      };
+
+      add("%PDF-1.4\n%\xE2\xE3\xCF\xD3\n");
+      const pageRefs = jpegs.map((_, index) => `${3 + index * 3} 0 R`).join(" ");
+      addObject(1, ["<< /Type /Catalog /Pages 2 0 R >>"]);
+      addObject(2, [`<< /Type /Pages /Kids [${pageRefs}] /Count ${jpegs.length} >>`]);
+
+      jpegs.forEach((jpeg, index) => {
+        const pageObj = 3 + index * 3;
+        const contentObj = pageObj + 1;
+        const imageObj = pageObj + 2;
+        const imageName = `Im${index + 1}`;
+        const commands = concatBytes([`q\n${pageW} 0 0 ${pageH} 0 0 cm\n/${imageName} Do\nQ\n`]);
+        addObject(pageObj, [
+          `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageW} ${pageH}] `,
+          `/Resources << /XObject << /${imageName} ${imageObj} 0 R >> >> /Contents ${contentObj} 0 R >>`
+        ]);
+        addObject(contentObj, [`<< /Length ${commands.length} >>\nstream\n`, commands, "\nendstream"]);
+        addObject(imageObj, [
+          `<< /Type /XObject /Subtype /Image /Width ${jpeg.width} /Height ${jpeg.height} `,
+          `/ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpeg.bytes.length} >>\nstream\n`,
+          jpeg.bytes,
+          "\nendstream"
+        ]);
+      });
+
+      const xrefOffset = length;
+      add(`xref\n0 ${offsets.length}\n0000000000 65535 f \n`);
+      for (let i = 1; i < offsets.length; i += 1) {
+        add(`${String(offsets[i]).padStart(10, "0")} 00000 n \n`);
+      }
+      add(`trailer\n<< /Size ${offsets.length} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`);
+      return new Blob(chunks, { type: "application/pdf" });
+    }
+
     function wait(ms) {
       return new Promise(resolve => setTimeout(resolve, ms));
     }
@@ -1314,6 +1383,7 @@
         els.printRoot.replaceChildren();
         resetPrintUrls();
         els.printFrame.removeAttribute("srcdoc");
+        els.printFrame.removeAttribute("src");
         return;
       }
       const buildId = ++state.printBuildId;
@@ -1331,10 +1401,17 @@
       }
       const fragment = document.createDocumentFragment();
       const urls = [];
+      const jpegs = [];
       for (let page = 0; page < pageCount(); page += 1) {
         const canvas = await drawPageToCanvas(page);
         if (buildId !== state.printBuildId) return false;
         const blob = await canvasToBlob(canvas, "image/jpeg", 0.98);
+        if (buildId !== state.printBuildId) return false;
+        jpegs.push({
+          width: canvas.width,
+          height: canvas.height,
+          bytes: await blobToBytes(blob)
+        });
         if (buildId !== state.printBuildId) return false;
         const url = URL.createObjectURL(blob);
         urls.push(url);
@@ -1348,8 +1425,10 @@
         fragment.appendChild(printPage);
       }
       if (buildId !== state.printBuildId) return false;
+      const pdfBlob = createPdfBlobFromJpegs(jpegs);
       resetPrintUrls();
       state.printUrls = urls;
+      state.printPdfUrl = URL.createObjectURL(pdfBlob);
       els.printRoot.replaceChildren(fragment);
       updatePrintPageSizeStyle();
       await updatePrintFrameDocument();
@@ -1362,30 +1441,19 @@
     function resetPrintUrls() {
       state.printUrls.forEach(url => URL.revokeObjectURL(url));
       state.printUrls = [];
+      if (state.printPdfUrl) URL.revokeObjectURL(state.printPdfUrl);
+      state.printPdfUrl = null;
     }
 
     function updatePrintFrameDocument() {
-      const pages = state.printUrls.map(url => `<section class="page"><img src="${url}" alt=""></section>`).join("");
       return new Promise(resolve => {
         const done = () => {
           els.printFrame.removeEventListener("load", done);
           resolve();
         };
         els.printFrame.addEventListener("load", done);
-        els.printFrame.srcdoc = `<!doctype html>
-          <html lang="zh-CN">
-          <head>
-            <meta charset="utf-8">
-            <style>
-              @page { size: ${state.paper.w}in ${state.paper.h}in; margin: 0; }
-              html, body { margin: 0; padding: 0; background: white; width: ${state.paper.w}in; }
-              .page { width: ${state.paper.w}in; height: ${state.paper.h}in; margin: 0; page-break-after: always; break-after: page; overflow: hidden; background: white; }
-              .page:last-child { page-break-after: auto; break-after: auto; }
-              img { display: block; width: 100%; height: 100%; object-fit: fill; }
-            </style>
-          </head>
-          <body>${pages}</body>
-          </html>`;
+        els.printFrame.removeAttribute("srcdoc");
+        els.printFrame.src = state.printPdfUrl;
         setTimeout(done, 1200);
       });
     }
@@ -1397,7 +1465,11 @@
         schedulePrintBuild(0);
         return;
       }
-      showToast("打印预览应只显示照片拼版。");
+      showToast("正在打开无页脚 PDF 打印页。");
+      if (/iPhone|iPad|iPod/i.test(navigator.userAgent) && state.printPdfUrl) {
+        window.open(state.printPdfUrl, "_blank");
+        return;
+      }
       const printWindow = els.printFrame.contentWindow;
       if (printWindow) {
         printWindow.focus();
