@@ -420,6 +420,12 @@
       border-left-width: 1px;
     }
 
+    .slot.active {
+      outline: 2px solid rgba(15, 127, 110, 0.82);
+      outline-offset: -2px;
+      z-index: 1;
+    }
+
     .sheet.portrait .slot + .slot {
       border-left-width: 0;
       border-top-width: 1px;
@@ -789,12 +795,10 @@
       fileInput: document.getElementById("fileInput"),
       marginRange: document.getElementById("marginRange"),
       zoomRange: document.getElementById("zoomRange"),
-      rotateRange: document.getElementById("rotateRange"),
       rotateLeftBtn: document.getElementById("rotateLeftBtn"),
       rotateRightBtn: document.getElementById("rotateRightBtn"),
       marginOut: document.getElementById("marginOut"),
       zoomOut: document.getElementById("zoomOut"),
-      rotateOut: document.getElementById("rotateOut"),
       photoList: document.getElementById("photoList"),
       photoHint: document.getElementById("photoHint"),
       sheet: document.getElementById("sheet"),
@@ -846,13 +850,10 @@
       const active = getActivePhoto();
       const margin = active ? active.margin : Number(els.marginRange.value);
       const zoom = active ? active.zoom : Number(els.zoomRange.value);
-      const rotate = active ? active.rotate : Number(els.rotateRange.value);
       els.marginRange.value = margin;
       els.zoomRange.value = zoom;
-      els.rotateRange.value = normalizeRotation(rotate);
       els.marginOut.value = `${Number(margin).toFixed(2)} in`;
       els.zoomOut.value = `${Math.round(zoom * 100)}%`;
-      els.rotateOut.value = `${Math.round(normalizeRotation(rotate))}°`;
     }
 
     function updateControlAvailability() {
@@ -863,7 +864,7 @@
       els.fitBtn.disabled = !getActivePhoto();
       els.rotateLeftBtn.disabled = !getActivePhoto();
       els.rotateRightBtn.disabled = !getActivePhoto();
-      [els.marginRange, els.zoomRange, els.rotateRange].forEach(input => {
+      [els.marginRange, els.zoomRange].forEach(input => {
         input.disabled = !getActivePhoto();
       });
     }
@@ -1029,7 +1030,7 @@
     function renderSlot(photo, slotIndex) {
       const slot = document.createElement("button");
       slot.type = "button";
-      slot.className = "slot";
+      slot.className = `slot${photo?.id === state.activePhotoId ? " active" : ""}`;
       slot.style.setProperty("--margin", `${photo?.margin ?? Number(els.marginRange.value)}in`);
       slot.dataset.photoId = photo?.id || "";
       slot.setAttribute("aria-label", photo ? `调整 ${photo.name}` : "空位");
